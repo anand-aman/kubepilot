@@ -3,13 +3,19 @@ package application
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
+
+	"k8s.io/client-go/kubernetes"
+
+	"github.com/anand-aman/kubepilot/k8s"
 )
 
 type App struct {
 	router http.Handler
 	config Config
+	client *kubernetes.Clientset
 }
 
 func New(config Config) *App {
@@ -23,17 +29,25 @@ func New(config Config) *App {
 }
 
 func (a *App) Start(ctx context.Context) error {
+	// Initialize K8s client at startup
+	client, err := k8s.NewClient()
+	if err != nil {
+		return fmt.Errorf("failed to create kubernetes client: %w", err)
+	}
+	a.client = client
+	log.Println("✓ Kubernetes client initialized successfully")
+
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", a.config.ServerPort),
 		Handler: a.router,
 	}
 
-	var err error
+	var serverErr error
 	ch := make(chan error, 1)
 	go func() {
-		err = server.ListenAndServe()
-		if err != nil {
-			ch <- fmt.Errorf("Failed to start server: %w", err)
+		serverErr = server.ListenAndServe()
+		if serverErr != nil {
+			ch <- fmt.Errorf("Failed to start server: %w", serverErr)
 		}
 		close(ch)
 	}()
@@ -42,10 +56,10 @@ func (a *App) Start(ctx context.Context) error {
 	case err = <-ch:
 		return err
 	case <-ctx.Done():
-		fmt.Println("Shutting down the server...")
+		log.Println("Shutting down the server...")
 		timeout, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		err = server.Shutdown(timeout)
 	}
-	return nil
+	return err
 }

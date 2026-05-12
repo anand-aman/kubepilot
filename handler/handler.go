@@ -1,14 +1,28 @@
 package handler
 
 import (
-	"fmt"
+	"encoding/json"
 	"net/http"
+
+	"k8s.io/client-go/kubernetes"
 )
 
 type Handler struct {
+	Client *kubernetes.Clientset
 }
 
-func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("List all pods")
-	w.Write([]byte("Success"))
+func NewHandler(client *kubernetes.Clientset) *Handler {
+	return &Handler{
+		Client: client,
+	}
+}
+
+func writeJSON(w http.ResponseWriter, status int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(v)
+}
+
+func writeError(w http.ResponseWriter, status int, err error) {
+	writeJSON(w, status, map[string]string{"error": err.Error()})
 }

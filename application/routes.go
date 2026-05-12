@@ -1,6 +1,7 @@
 package application
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -20,16 +21,28 @@ func (a *App) loadRoutes() {
 	}))
 
 	router.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status":"ok","message":"kubepilot api running"}`))
 	})
 
-	router.Route("/kube", a.loadOrderRoutes)
+	router.Route("/namespaces", a.loadNamespacesRoutes)
 
 	a.router = router
 }
 
-func (a *App) loadOrderRoutes(router chi.Router) {
-	handler := &handler.Handler{}
+func (a *App) loadNamespacesRoutes(router chi.Router) {
+	// Check if client is initialized
+	if a.client == nil {
+		log.Println("⚠ Kubernetes client not initialized, kube routes will return error")
+		router.Get("/", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusServiceUnavailable)
+			w.Write([]byte(`{"error":"kubernetes client not available"}`))
+		})
+		return
+	}
 
-	router.Get("/", handler.List)
+	h := handler.NewHandler(a.client)
+	router.Get("/", h.GetNamespaces)
 }
