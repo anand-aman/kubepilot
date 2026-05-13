@@ -50,6 +50,7 @@ func (a *App) loadNamespacesRoutes(router chi.Router) {
 	h := handler.NewHandler(a.client)
 	router.Get("/", h.GetNamespaces)
 	router.Post("/", h.CreateNamespace)
+	router.Delete("/{name}", h.DeleteNamespace)
 }
 
 func (a *App) loadPodsRoutes(router chi.Router) {
