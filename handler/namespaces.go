@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/go-chi/chi/v5"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -68,4 +69,29 @@ func (h *Handler) CreateNamespace(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusCreated, map[string]string{"message": "Namespace created successfully"})
+}
+
+func (h *Handler) DeleteNamespace(w http.ResponseWriter, r *http.Request) {
+	name := strings.TrimSpace(chi.URLParam(r, "name"))
+	if name == "" {
+		writeError(w, http.StatusBadRequest, fmt.Errorf("namespace name cannot be empty"))
+		return
+	}
+
+	if name == "default" || name == "kube-system" || name == "kube-public" {
+		writeError(w, http.StatusForbidden, fmt.Errorf("deletion of critical namespaces is not allowed"))
+		return
+	}
+
+	err := h.Client.CoreV1().Namespaces().Delete(r.Context(), name, metav1.DeleteOptions{})
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			writeError(w, http.StatusNotFound, fmt.Errorf("namespace not found"))
+			return
+		}
+		writeError(w, http.StatusInternalServerError, fmt.Errorf("failed to delete namespace: %w", err))
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"message": "Namespace deleted successfully"})
 }
