@@ -28,7 +28,7 @@ func (a *App) loadRoutes() {
 	router.Group(func(r chi.Router) {
 		r.Use(a.requireK8sClient)
 		r.Route("/namespaces", a.loadNamespacesRoutes)
-
+		r.Route("/pods", a.loadPodsRoutes)
 	})
 
 	a.router = router
@@ -49,4 +49,9 @@ func (a *App) requireK8sClient(next http.Handler) http.Handler {
 func (a *App) loadNamespacesRoutes(router chi.Router) {
 	h := handler.NewHandler(a.client)
 	router.Get("/", h.GetNamespaces)
+}
+
+func (a *App) loadPodsRoutes(router chi.Router) {
+	h := handler.NewHandler(a.client)
+	router.Get("/", h.GetPods)
 }
