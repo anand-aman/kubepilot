@@ -23,8 +23,6 @@ func New(config Config) *App {
 		config: config,
 	}
 
-	app.loadRoutes()
-
 	return app
 }
 
@@ -36,6 +34,8 @@ func (a *App) Start(ctx context.Context) error {
 	}
 	a.client = client
 	log.Println("✓ Kubernetes client initialized successfully")
+
+	a.loadRoutes()
 
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", a.config.ServerPort),

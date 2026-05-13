@@ -25,20 +25,28 @@ func (a *App) loadRoutes() {
 		w.Write([]byte(`{"status":"ok","message":"kubepilot api running"}`))
 	})
 
-	router.Route("/namespaces", a.loadNamespacesRoutes)
+	router.Group(func(r chi.Router) {
+		r.Use(a.requireK8sClient)
+		r.Route("/namespaces", a.loadNamespacesRoutes)
+
+	})
 
 	a.router = router
 }
 
-func (a *App) loadNamespacesRoutes(router chi.Router) {
-	router.Get("/", func(w http.ResponseWriter, r *http.Request) {
+func (a *App) requireK8sClient(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if a.client == nil {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusServiceUnavailable)
 			w.Write([]byte(`{"error":"kubernetes client not available"}`))
 			return
 		}
-		h := handler.NewHandler(a.client)
-		h.GetNamespaces(w, r)
+		next.ServeHTTP(w, r)
 	})
+}
+
+func (a *App) loadNamespacesRoutes(router chi.Router) {
+	h := handler.NewHandler(a.client)
+	router.Get("/", h.GetNamespaces)
 }
