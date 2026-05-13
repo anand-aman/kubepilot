@@ -49,6 +49,7 @@ func (a *App) requireK8sClient(next http.Handler) http.Handler {
 func (a *App) loadNamespacesRoutes(router chi.Router) {
 	h := handler.NewHandler(a.client)
 	router.Get("/", h.GetNamespaces)
+	router.Post("/", h.CreateNamespace)
 }
 
 func (a *App) loadPodsRoutes(router chi.Router) {
